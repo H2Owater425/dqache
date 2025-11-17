@@ -1,11 +1,12 @@
-
 from os import listdir
+from tensorflow import TensorSpec
 from keras.models import load_model
-from tensorflow import lite
+from tf2onnx.convert import from_keras
 
 file = sorted(listdir('saves'))[-1]
+model = load_model(f'saves/{file}')
+model.output_names = []
 
-with open('model.tflite', 'wb') as model:
-	model.write(lite.TFLiteConverter.from_keras_model(load_model(f'saves/{file}')).convert())
+from_keras(model, [TensorSpec(model.inputs[0].shape, model.inputs[0].dtype)], opset=13, output_path='model.onnx')
 
-print(f'saved saves/{file} as model.tflite')
+print(f'saved saves/{file} as model.onnx')
