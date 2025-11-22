@@ -158,8 +158,8 @@ GAMMA = 0.95
 REPLAY_BUFFER_SIZE = 1048576
 BATCH_SIZE = 128
 
-MIN_CACHE_CAPACITY = 64
-MAX_CACHE_CAPACITY = 256
+MINIMUM_CACHE_CAPACITY = 64
+MAXIMUM_CACHE_CAPACITY = 256
 
 TARGET_UPDATE_FREQUENCY = 16384
 SPLIT_COUNT = 32
@@ -190,7 +190,7 @@ with open(f'logs/{unix_epoch()}.log', 'w') as output:
 	for i, folder in enumerate(sample(listdir('data'), FOLDER_COUNT)):
 		for j, file in enumerate(sample(listdir(join('data', folder)), FILE_COUNT)):
 			for k, data in enumerate(sample(load_datas(join('data', folder, file), SPLIT_COUNT), CHUNK_COUNT)):
-				capacity = randint(MIN_CACHE_CAPACITY, MAX_CACHE_CAPACITY)
+				capacity = randint(MINIMUM_CACHE_CAPACITY, MAXIMUM_CACHE_CAPACITY)
 				environment = Environment(capacity, agent, data)
 
 				output.write(f'chunk {k + 1}/{CHUNK_COUNT} in {file} {j + 1}/{FILE_COUNT} in {folder} {i + 1}/{FOLDER_COUNT} (capacity: {capacity})\n')
