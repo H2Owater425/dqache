@@ -1,4 +1,4 @@
-use std::{env::{args, consts::{ARCH, OS}}, fs::metadata, process::exit};
+use std::{env::{Args, args, consts::{ARCH, OS}}, fs::metadata, process::exit};
 use crate::{cache::Model, exit_with, protocol::Version};
 
 pub struct Argument {
@@ -43,7 +43,7 @@ impl Argument {
 			})
 		};
 
-		let mut arguments = args();
+		let mut arguments: Args = args();
 
 		arguments.next();
 

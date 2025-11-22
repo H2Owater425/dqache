@@ -94,13 +94,13 @@ impl TryFrom<&[u8]> for Version {
 }
 
 impl PartialEq for Version {
-	fn eq(&self, other: &Self) -> bool {
+	fn eq(self: &Self, other: &Self) -> bool {
 		self.major == other.major && self.minor == other.minor && self.patch == other.patch
 	}
 }
 
 impl PartialOrd for Version {
-	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+	fn partial_cmp(self: &Self, other: &Self) -> Option<Ordering> {
 		match self.major.cmp(&other.major) {
 			Ordering::Equal => (),
 			ordering => return Some(ordering),
@@ -116,8 +116,8 @@ impl PartialOrd for Version {
 }
 
 impl Display for Version {
-	fn fmt(&self, f: &mut Formatter<'_>) -> _Result {
-		write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+	fn fmt(self: &Self, formatter: &mut Formatter<'_>) -> _Result {
+		write!(formatter, "{}.{}.{}", self.major, self.minor, self.patch)
 	}
 }
 

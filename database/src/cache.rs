@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::{Debug, Result as _Result}};
+use std::{collections::HashMap, fmt::{Debug, Formatter, Result as _Result}};
 
 use crate::{common::{ARGUMENT, Result, unix_epoch}, model::{DeepQNetwork, LeastFrequentlyUsed, LeastRecentlyUsed}};
 
@@ -9,8 +9,8 @@ pub struct Entry {
 }
 
 impl Debug for Entry {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> _Result {
-			f.debug_struct("")
+	fn fmt(self: &Self, formatter: &mut Formatter<'_>) -> _Result {
+			formatter.debug_struct("")
 				.field("size", &self.value.len())
 				.field("accessed_at", &self.accessed_at)
 				.field("access_count", &self.access_count)
