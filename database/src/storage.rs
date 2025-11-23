@@ -1,5 +1,8 @@
-use std::{fs::{create_dir_all, exists, read, remove_file, write}, path::PathBuf};
-use crate::common::{ARGUMENT, Result};
+use std::{
+	fs::{create_dir_all, exists, read, remove_file, write},
+	path::PathBuf
+};
+use crate::common::{Result, ARGUMENT};
 
 pub struct Storage {
 	root: PathBuf

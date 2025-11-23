@@ -1,4 +1,9 @@
-use std::{error::Error, result::Result as _Result, sync::LazyLock, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+	error::Error,
+	result::Result as _Result,
+	sync::LazyLock,
+	time::{SystemTime, UNIX_EPOCH}
+};
 use crate::argument::Argument;
 
 #[macro_export]
@@ -9,9 +14,7 @@ macro_rules! exit_with {
 	}};
 }
 
-pub static ARGUMENT: LazyLock<Argument> = LazyLock::new(|| {
-	Argument::new()
-});
+pub static ARGUMENT: LazyLock<Argument> = LazyLock::new(|| Argument::new());
 
 pub fn unix_epoch() -> Result<u64> {
 	Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs())

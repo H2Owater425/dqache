@@ -1,5 +1,17 @@
-use std::{env::{Args, args, consts::{ARCH, OS}}, fs::metadata, process::exit};
-use crate::{cache::Model, exit_with, protocol::Version};
+use std::{
+	env::{
+		args,
+		consts::{ARCH, OS},
+		Args
+	},
+	fs::metadata,
+	process::exit
+};
+use crate::{
+	cache::Model,
+	exit_with,
+	protocol::Version
+};
 
 pub struct Argument {
 	pub model: Model,
@@ -19,9 +31,8 @@ impl Argument {
 			directory: "./data".to_string(),
 			port: 5190,
 			is_verbose: false,
-			version: Version::try_from(env!("CARGO_PKG_VERSION")).unwrap_or_else(|_| {
-				exit_with!(1, "package version must be sementic\n")
-			}),
+			version: Version::try_from(env!("CARGO_PKG_VERSION"))
+				.unwrap_or_else(|_| exit_with!(1, "package version must be sementic\n")),
 			platform: format!("{}-{}-{}{}", ARCH, OS, if cfg!(target_vendor = "apple") {
 				"apple"
 			} else if cfg!(target_vendor = "pc") {
@@ -92,23 +103,19 @@ impl Argument {
 				},
 				"--verbose" | "-v" => argument.is_verbose = true,
 				"--version" | "-V" => exit_with!(1, "qache {}\n", argument.version),
-				"--help" | "-h" => {
-					exit_with!(0, "Usage: qache [OPTIONS]
+				"--help" | "-h" => exit_with!(0, "Usage: qache [OPTIONS]
 
 Options:
-  -M, --model <MODEL>          Set cache model [DQN, LRU, LFU] (default: DQN)
-  -C, --capacity <CAPACITY>    Set cache capacity (default: 128)
-  -D, --directory <DIRECTORY>  Set data directory (default: ./data)
-  -P, --port <PORT>            Set server port (default: 5190)
-  -v, --verbose                Enable verbose output
-  -V, --version                Print version information
-  -h, --help                   Print this help message
-");
-				},
-				"--" => {
-					if let Some(_) = arguments.next() {
-						exit_with!(1, "positional arguments must not be provided\n");
-					}
+	-M, --model <MODEL>          Set cache model [DQN, LRU, LFU] (default: DQN)
+	-C, --capacity <CAPACITY>    Set cache capacity (default: 128)
+	-D, --directory <DIRECTORY>  Set data directory (default: ./data)
+	-P, --port <PORT>            Set server port (default: 5190)
+	-v, --verbose                Enable verbose output
+	-V, --version                Print version information
+	-h, --help                   Print this help message
+"),
+				"--" => if let Some(_) = arguments.next() {
+					exit_with!(1, "positional arguments must not be provided\n");
 				},
 				_ => exit_with!(1, "Usage: qache [-M <MODEL>] [-C <CAPACITY>] [-D <DIRECTORY>] [-P <PORT>] [-v] [-V] [-h]\n")
 			}

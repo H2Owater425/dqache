@@ -1,13 +1,46 @@
+mod argument;
 mod cache;
 mod common;
 mod model;
+mod protocol;
 mod storage;
 mod thread_pool;
-mod argument;
-mod protocol;
 
-use std::{io::{ErrorKind, Read, Write, Error}, net::{Ipv4Addr, TcpListener, TcpStream}, sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock, RwLockWriteGuard, RwLockReadGuard}, thread::available_parallelism, time::Duration };
-use crate::{cache::{Cache, Entry}, common::{ARGUMENT, Result}, protocol::{OPERATION_DEL, OPERATION_GET, OPERATION_HELLO, OPERATION_NOP, OPERATION_OK, OPERATION_QUIT, OPERATION_READY, OPERATION_SET, OPERATION_VALUE, Version, read_string, send_error}, storage::Storage, thread_pool::ThreadPool};
+use std::{
+	io::{Error, ErrorKind, Read, Write},
+	net::{Ipv4Addr, TcpListener, TcpStream},
+	sync::{
+		Arc,
+		Mutex,
+		MutexGuard,
+		PoisonError,
+		RwLock,
+		RwLockReadGuard,
+		RwLockWriteGuard
+	},
+	thread::available_parallelism,
+	time::Duration
+};
+use crate::{
+	cache::{Cache, Entry},
+	common::{Result, ARGUMENT},
+	protocol::{
+		read_string,
+		send_error,
+		Version,
+		OPERATION_DEL,
+		OPERATION_GET,
+		OPERATION_HELLO,
+		OPERATION_NOP,
+		OPERATION_OK,
+		OPERATION_QUIT,
+		OPERATION_READY,
+		OPERATION_SET,
+		OPERATION_VALUE
+	},
+	storage::Storage,
+	thread_pool::ThreadPool
+};
 
 fn main() -> Result<()> {
 	print!("starting qache {} on {}\n", ARGUMENT.version, ARGUMENT.platform);
@@ -37,7 +70,7 @@ fn main() -> Result<()> {
 				if handshake[0] != OPERATION_HELLO[0] {
 					return Err(Box::from("handshake must start with HELLO operation"));
 				}
-				
+
 				if let Ok(version) = Version::try_from(&handshake[1..4]) {
 					if version > ARGUMENT.version {
 						return Err(Box::from(format!("client version must be less than or equal to {}", ARGUMENT.version)));
@@ -70,29 +103,43 @@ fn main() -> Result<()> {
 							let key: String = read_string::<1>(&mut stream, &mut key_length)?;
 							let value: String = read_string::<4>(&mut stream, &mut value_length)?;
 
-							cache.lock().map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?.set(&key, Entry::new(&value)?)?;
-							storage.write().map_err(|error: PoisonError<RwLockWriteGuard<'_, Storage>>| error.to_string())?.write(&key, value)?;
+							cache.lock()
+								.map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?
+								.set(&key, Entry::new(&value)?)?;
+							storage.write()
+								.map_err(|error: PoisonError<RwLockWriteGuard<'_, Storage>>| error.to_string())?
+								.write(&key, value)?;
 
 							stream.write(OPERATION_OK)?;
 						},
 						OPERATION_DEL => {
 							let key: String = read_string::<1>(&mut stream, &mut key_length)?;
 
-							cache.lock().map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?.remove(&key);
-							storage.write().map_err(|error: PoisonError<RwLockWriteGuard<'_, Storage>>| error.to_string())?.delete(&key)?;
+							cache.lock()
+								.map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?
+								.remove(&key);
+							storage.write()
+								.map_err(|error: PoisonError<RwLockWriteGuard<'_, Storage>>| error.to_string())?
+								.delete(&key)?;
 
 							stream.write(OPERATION_OK)?;
 						},
 						OPERATION_GET => {
 							let key: String = read_string::<1>(&mut stream, &mut key_length)?;
-							let (is_cached, value): (bool, String) = if let Some(entry) = cache.lock().map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?.get(&key)? {
+							let (is_cached, value): (bool, String) = if let Some(entry) = cache.lock()
+								.map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?
+								.get(&key)? {
 								(true, entry.value.clone())
 							} else {
-								(false, storage.read().map_err(|error: PoisonError<RwLockReadGuard<'_, Storage>>| error.to_string())?.read(&key)?)
+								(false, storage.read()
+									.map_err(|error: PoisonError<RwLockReadGuard<'_, Storage>>| error.to_string())?
+									.read(&key)?)
 							};
 
 							if !is_cached && value.len() != 0 {
-								cache.lock().map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?.set(&key, Entry::new(&value)?)?;
+								cache.lock()
+									.map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?
+									.set(&key, Entry::new(&value)?)?;
 							}
 
 							let value_length: usize = value.len();
@@ -121,7 +168,7 @@ fn main() -> Result<()> {
 								} else {
 									"unknown".to_owned()
 								});
-	
+
 								break;
 							},
 							ErrorKind::StorageFull => "storage must have free space".to_owned(),

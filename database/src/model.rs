@@ -1,6 +1,20 @@
-use std::{collections::HashMap};
-use ort::{inputs, session::{InMemorySession, Session, SessionOutputs, builder::GraphOptimizationLevel}, value::Value};
-use crate::{cache::{Evictor, Entry}, common::{log1p, unix_epoch, Result}};
+use ort::{
+	session::{
+		builder::GraphOptimizationLevel,
+		InMemorySession,
+		Session,
+		SessionOutputs
+	},
+	value::Value
+};
+use std::{
+	collections::HashMap,
+	iter::zip
+};
+use crate::{
+	cache::{Entry, Evictor},
+	common::{log1p, unix_epoch, Result, ARGUMENT}
+};
 
 pub struct DeepQNetwork<'a> {
 	model: InMemorySession<'a>
@@ -10,8 +24,8 @@ impl<'a> DeepQNetwork<'a> {
 	pub fn new() -> Result<Self> {
 		Ok(DeepQNetwork {
 			model: Session::builder()?
-			.with_optimization_level(GraphOptimizationLevel::Level3)?
-			.commit_from_memory_directly(include_bytes!("../model.onnx"))?
+				.with_optimization_level(GraphOptimizationLevel::Level3)?
+				.commit_from_memory_directly(include_bytes!("../model.onnx"))?
 		})
 	}
 }
@@ -36,13 +50,23 @@ impl<'a> Evictor for DeepQNetwork<'a> {
 			inputs.push(capacity);
 		}
 
-		let output: SessionOutputs = self.model.run(inputs!["args_0" => Value::from_array((([length, 4]), inputs))?])?;
+		let output: SessionOutputs = self.model.run(vec![("args_0", Value::from_array((([length, 4]), inputs))?)])?;
+		let output: &[f32] = output[0].try_extract_tensor::<f32>()?.1;
 
 		let mut i: usize = 0;
 		let mut minimum_score: f32 = f32::MAX;
 		let mut minimum_index: usize = 0;
 
-		for score in output[0].try_extract_tensor::<f32>()?.1 {
+
+		if ARGUMENT.is_verbose {
+			let mut key_scores: Vec<(&&String, &f32)> = zip(&keys, output).collect::<Vec<(&&String, &f32)>>();
+
+			key_scores.sort_by(|a: &(&&String, &f32), b: &(&&String, &f32)| a.1.total_cmp(b.1));
+
+			print!("scored with {:?}\n", key_scores);
+		}
+
+		for score in output {
 			if *score < minimum_score {
 				minimum_score = *score;
 				minimum_index = i;
@@ -70,7 +94,7 @@ impl Evictor for LeastRecentlyUsed {
 			if entry.1.accessed_at < minimum_accessed_at {
 				minimum_accessed_at = entry.1.accessed_at;
 				minimum_key = entry.0;
-			} 
+			}
 		}
 
 		Ok(minimum_key.clone())
@@ -92,7 +116,7 @@ impl Evictor for LeastFrequentlyUsed {
 			if entry.1.access_count < minimum_access_count {
 				minimum_access_count = entry.1.access_count;
 				minimum_key = entry.0;
-			} 
+			}
 		}
 
 		Ok(minimum_key.clone())

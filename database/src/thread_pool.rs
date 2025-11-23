@@ -1,6 +1,12 @@
-use std::{sync::{Arc, Mutex, mpsc::{Receiver, SendError, Sender, channel}}, thread::{JoinHandle, spawn}};
-
-use crate::common::{ARGUMENT, Job, Result};
+use std::{
+	sync::{
+		mpsc::{channel, Receiver, SendError, Sender},
+		Arc,
+		Mutex
+	},
+	thread::{spawn, JoinHandle}
+};
+use crate::common::{Job, Result, ARGUMENT};
 
 pub struct ThreadPool {
 	threads: Vec<JoinHandle<()>>,
@@ -38,7 +44,7 @@ impl ThreadPool {
 						print!("thread {} shutdown\n", id);
 					}
 
-					break
+					break;
 				};
 
 				if ARGUMENT.is_verbose {
@@ -54,15 +60,12 @@ impl ThreadPool {
 		}
 
 		Ok(ThreadPool {
-			threads,
-			sender: Some(sender),
+			threads: threads,
+			sender: Some(sender)
 		})
 	}
 
-	pub fn execute<F>(self: &Self, function: F) -> Result<(), SendError<Job>>
-	where
-		F: FnOnce() + Send + 'static,
-	{
+	pub fn execute<F>(self: &Self, function: F) -> Result<(), SendError<Job>> where F: FnOnce() + Send + 'static {
 		if let Some(sender) = &self.sender {
 			sender.send(Box::new(function))?;
 		}

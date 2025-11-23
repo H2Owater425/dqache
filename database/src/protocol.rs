@@ -1,5 +1,11 @@
-use std::{cmp::Ordering, error::Error, fmt::{Display, Formatter, Result as _Result}, io::{Read, Write}, net::TcpStream};
-use crate::common::{ARGUMENT, Result};
+use std::{
+	cmp::Ordering,
+	error::Error,
+	fmt::{Display, Formatter, Result as _Result},
+	io::{Read, Write},
+	net::TcpStream
+};
+use crate::common::{Result, ARGUMENT};
 
 /*
 	big endian
@@ -34,7 +40,7 @@ pub const OPERATION_VALUE: &[u8; 1] = &[0b10000011];
 pub const OPERATION_ERROR: &[u8; 1] = &[0b10000100];
 pub const OPERATION_QUIT: &[u8; 1] = &[0b11111111];
 
-pub fn read_string<const N: usize>(stream: &mut TcpStream, length: &mut [u8; N]) -> Result<String> {
+pub fn read_string<const N: usize>(stream: &mut TcpStream,length: &mut [u8; N]) -> Result<String> {
 	if N != 1 && N != 4 {
 		return Err(Box::from("length array size must be 1 or 4"));
 	}
@@ -125,12 +131,12 @@ impl PartialOrd for Version {
 	fn partial_cmp(self: &Self, other: &Self) -> Option<Ordering> {
 		match self.major.cmp(&other.major) {
 			Ordering::Equal => (),
-			ordering => return Some(ordering),
+			ordering => return Some(ordering)
 		}
 
 		match self.minor.cmp(&other.minor) {
 			Ordering::Equal => (),
-			ordering => return Some(ordering),
+			ordering => return Some(ordering)
 		}
 
 		Some(self.patch.cmp(&other.patch))

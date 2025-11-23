@@ -1,6 +1,11 @@
-use std::{collections::HashMap, fmt::{Debug, Formatter, Result as _Result}};
-
-use crate::{common::{ARGUMENT, Result, unix_epoch}, model::{DeepQNetwork, LeastFrequentlyUsed, LeastRecentlyUsed}};
+use std::{
+	collections::HashMap,
+	fmt::{Debug, Formatter, Result as _Result}
+};
+use crate::{
+	common::{unix_epoch, Result, ARGUMENT},
+	model::{DeepQNetwork, LeastFrequentlyUsed, LeastRecentlyUsed}
+};
 
 pub struct Entry {
 	pub value: String,
@@ -10,7 +15,11 @@ pub struct Entry {
 
 impl Debug for Entry {
 	fn fmt(self: &Self, formatter: &mut Formatter<'_>) -> _Result {
-		formatter.debug_struct("").field("size", &self.value.len()).field("accessed_at", &self.accessed_at).field("access_count", &self.access_count).finish()
+		formatter.debug_struct("")
+			.field("size", &self.value.len())
+			.field("accessed_at", &self.accessed_at)
+			.field("access_count", &self.access_count)
+			.finish()
 	}
 }
 
@@ -75,20 +84,20 @@ impl Cache {
 			if self.entries.len() == self.capacity {
 				let victim_key: String = self.model.select_victim(&self.entries)?;
 
-				if let Some(old_entry)  = self.entries.remove(&victim_key) {
+				if let Some(old_entry) = self.entries.remove(&victim_key) {
 					if ARGUMENT.is_verbose {
-						print!("evicted {}{:?} to set {}{:?}", victim_key, old_entry, key, entry);
+						print!("evicted {}{:?} to set {}{:?} from", victim_key, old_entry, key, entry);
 					}
 				}
 			} else if ARGUMENT.is_verbose {
-				print!("set {}{:?}", key, entry);
+				print!("set {}{:?} to", key, entry);
 			}
 
 			self.entries.insert(key.to_owned(), entry);
 		}
 
 		if ARGUMENT.is_verbose {
-			print!(" from {}\n", old_entries);
+			print!(" {}\n", old_entries);
 		}
 
 		Ok(())
