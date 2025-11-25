@@ -95,15 +95,15 @@ fn main() {
 					return;
 				}
 	
-				let mut word: [u8; 2] = [0; 2];
+				let mut byte: [u8; 1] = [0];
 	
 				loop {
 					if let Err(error) = (|| -> Result<()> {
-						stream.read_exact(&mut word)?;
+						stream.read_exact(&mut byte)?;
 	
-						match &word[0..1] {
+						match &byte {
 							OPERATION_SET => {
-								let key: String = read_string::<2>(&mut stream, &mut word)?;
+								let key: String = read_string::<1>(&mut stream, &mut byte)?;
 								let value: String = read_string::<4>(&mut stream, &mut double_word)?;
 	
 								cache.lock()
@@ -116,7 +116,7 @@ fn main() {
 								stream.write(OPERATION_OK)?;
 							},
 							OPERATION_DEL => {
-								let key: String = read_string::<2>(&mut stream, &mut word)?;
+								let key: String = read_string::<1>(&mut stream, &mut byte)?;
 	
 								cache.lock()
 									.map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?
@@ -131,7 +131,7 @@ fn main() {
 								stream.write(OPERATION_OK)?;
 							},
 							OPERATION_GET => {
-								let key: String = read_string::<2>(&mut stream, &mut word)?;
+								let key: String = read_string::<1>(&mut stream, &mut byte)?;
 								let (is_cached, value): (bool, String) = if let Some(entry) = cache.lock()
 									.map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?
 									.get(&key)? {

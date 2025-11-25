@@ -32,28 +32,27 @@ use crate::{
 	QUIT
 */
 
-pub const OPERATION_READY: &[u8] = &[0b10000000];
-pub const OPERATION_HELLO: &[u8] = &[0b00000000];
-pub const OPERATION_NOP: &[u8] = &[0b00000010];
-pub const OPERATION_SET: &[u8] = &[0b00000011];
-pub const OPERATION_DEL: &[u8] = &[0b00000100];
-pub const OPERATION_GET: &[u8] = &[0b00000101];
-pub const OPERATION_OK: &[u8] = &[0b10000010];
-pub const OPERATION_VALUE: &[u8] = &[0b10000011];
-pub const OPERATION_ERROR: &[u8] = &[0b10000100];
-pub const OPERATION_QUIT: &[u8] = &[0b11111111];
+pub const OPERATION_READY: &[u8; 1] = &[0b10000000];
+pub const OPERATION_HELLO: &[u8; 1] = &[0b00000000];
+pub const OPERATION_NOP: &[u8; 1] = &[0b00000010];
+pub const OPERATION_SET: &[u8; 1] = &[0b00000011];
+pub const OPERATION_DEL: &[u8; 1] = &[0b00000100];
+pub const OPERATION_GET: &[u8; 1] = &[0b00000101];
+pub const OPERATION_OK: &[u8; 1] = &[0b10000010];
+pub const OPERATION_VALUE: &[u8; 1] = &[0b10000011];
+pub const OPERATION_ERROR: &[u8; 1] = &[0b10000100];
+pub const OPERATION_QUIT: &[u8; 1] = &[0b11111111];
 
-pub fn read_string<const N: usize>(stream: &mut TcpStream, n_word/* I wasn't meaning that */: &mut [u8; N]) -> Result<String> {
-	let mut buffer: Vec<u8>;
-
-	if N == 2 {
-		buffer = vec![0; n_word[1] as usize];
+pub fn read_string<const N: usize>(stream: &mut TcpStream, byte_or_double_word: &mut [u8; N]) -> Result<String> {
+	let mut buffer: Vec<u8> = Vec::with_capacity(if N == 1 {
+		byte_or_double_word[0] as usize
 	} else if N == 4 {
-		stream.read_exact(n_word)?;
-		buffer = vec![0; (n_word[0] as usize) << 24 | (n_word[1] as usize) << 16 | (n_word[2] as usize) << 8 | n_word[3] as usize];
+		(byte_or_double_word[0] as usize) << 24 | (byte_or_double_word[1] as usize) << 16 | (byte_or_double_word[2] as usize) << 8 | byte_or_double_word[3] as usize
 	} else {
-		return Err(Box::from("length array size must be 1 or 4"));
-	}
+		return Err(Box::from("buffer size must be 1 or 4"));
+	});
+
+	stream.read_exact(byte_or_double_word)?;
 
 	if buffer.len() == 0 {
 		return Err(Box::from("length must be greater than 0"));
