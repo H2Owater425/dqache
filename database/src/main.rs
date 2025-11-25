@@ -59,7 +59,7 @@ fn main() -> Result<()> {
 		let cache: Arc<Mutex<Cache>> = cache.clone();
 		let storage: Arc<RwLock<Storage>> = storage.clone();
 
-		stream.set_read_timeout(Some(Duration::from_mins(1)))?;
+		stream.set_read_timeout(Some(Duration::from_secs(60)))?;
 		stream.set_nodelay(true)?;
 
 		thread_pool.execute(move || {
