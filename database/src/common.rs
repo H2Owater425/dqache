@@ -2,6 +2,7 @@ use std::{
 	error::Error,
 	io::{stderr, stdout},
 	net::TcpStream,
+	process::exit,
 	result::Result as _Result,
 	sync::LazyLock,
 	time::{SystemTime, UNIX_EPOCH}
@@ -15,7 +16,16 @@ pub type Job = Box<dyn FnOnce() + Send + 'static>;
 
 pub type Result<T, E = Box<dyn Error>> = _Result<T, E>;
 
-pub const ARGUMENT: LazyLock<Argument> = LazyLock::new(|| Argument::new().unwrap());
+pub const ARGUMENT: LazyLock<Argument> = LazyLock::new(|| {
+	match Argument::new() {
+		Ok(argument) => argument,
+		Err(error) => {
+			eprint!("{}\n", error);
+
+			exit(1);
+		}
+	}
+});
 
 pub const LOGGER: LazyLock<Logger> = LazyLock::new(|| Logger::new(stdout(), stderr(), 0));
 
