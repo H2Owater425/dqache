@@ -1,6 +1,6 @@
 use std::{
 	error::Error,
-	io::{stderr, stdout},
+	io::{BufWriter, stderr, stdout},
 	net::TcpStream,
 	process::exit,
 	result::Result as _Result,
@@ -27,7 +27,7 @@ pub const ARGUMENT: LazyLock<Argument> = LazyLock::new(|| {
 	}
 });
 
-pub const LOGGER: LazyLock<Logger> = LazyLock::new(|| Logger::new(stdout(), stderr(), 0));
+pub const LOGGER: LazyLock<Logger> = LazyLock::new(|| Logger::new(BufWriter::new(stdout()), BufWriter::new(stderr()), 0));
 
 #[macro_export]
 macro_rules! info {
