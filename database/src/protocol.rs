@@ -2,10 +2,13 @@ use std::{
 	cmp::Ordering,
 	error::Error,
 	fmt::{Display, Formatter, Result as _Result},
-	io::{Read, Write},
+	io::{IoSlice, Read, Write},
 	net::TcpStream
 };
-use crate::common::{Result, ARGUMENT};
+use crate::{
+	common::Result,
+	error
+};
 
 /*
 	big endian
@@ -29,37 +32,55 @@ use crate::common::{Result, ARGUMENT};
 	QUIT
 */
 
-pub const OPERATION_READY: &[u8; 1] = &[0b10000000];
-pub const OPERATION_HELLO: &[u8; 1] = &[0b00000000];
-pub const OPERATION_NOP: &[u8; 1] = &[0b00000010];
-pub const OPERATION_SET: &[u8; 1] = &[0b00000011];
-pub const OPERATION_DEL: &[u8; 1] = &[0b00000100];
-pub const OPERATION_GET: &[u8; 1] = &[0b00000101];
-pub const OPERATION_OK: &[u8; 1] = &[0b10000010];
-pub const OPERATION_VALUE: &[u8; 1] = &[0b10000011];
-pub const OPERATION_ERROR: &[u8; 1] = &[0b10000100];
-pub const OPERATION_QUIT: &[u8; 1] = &[0b11111111];
+pub const OPERATION_READY: &[u8] = &[0b10000000];
+pub const OPERATION_HELLO: &[u8] = &[0b00000000];
+pub const OPERATION_NOP: &[u8] = &[0b00000010];
+pub const OPERATION_SET: &[u8] = &[0b00000011];
+pub const OPERATION_DEL: &[u8] = &[0b00000100];
+pub const OPERATION_GET: &[u8] = &[0b00000101];
+pub const OPERATION_OK: &[u8] = &[0b10000010];
+pub const OPERATION_VALUE: &[u8] = &[0b10000011];
+pub const OPERATION_ERROR: &[u8] = &[0b10000100];
+pub const OPERATION_QUIT: &[u8] = &[0b11111111];
 
-pub fn read_string<const N: usize>(stream: &mut TcpStream,length: &mut [u8; N]) -> Result<String> {
-	if N != 1 && N != 4 {
+pub fn read_string<const N: usize>(stream: &mut TcpStream, n_word/* I wasn't meaning that */: &mut [u8; N]) -> Result<String> {
+	let mut buffer: Vec<u8>;
+
+	if N == 2 {
+		buffer = vec![0; n_word[1] as usize];
+	} else if N == 4 {
+		stream.read_exact(n_word)?;
+		buffer = vec![0; (n_word[0] as usize) << 24 | (n_word[1] as usize) << 16 | (n_word[2] as usize) << 8 | n_word[3] as usize];
+	} else {
 		return Err(Box::from("length array size must be 1 or 4"));
 	}
 
-	stream.read_exact(length)?;
-
-	let mut buffer: Vec<u8> = vec![0; if N == 1 {
-		length[0] as usize
-	} else {
-		(length[0] as usize) << 24 | (length[1] as usize) << 16 | (length[2] as usize) << 8 | length[3] as usize
-	}];
-
 	if buffer.len() == 0 {
-		return Err(Box::from("length must be greater than zero"));
+		return Err(Box::from("length must be greater than 0"));
 	}
 
 	stream.read_exact(&mut buffer)?;
 
 	Ok(String::from_utf8(buffer)?)
+}
+
+pub fn send_error(stream: &mut TcpStream, double_word: &mut [u8; 4], message: String) -> Result<()> {
+	let message_length: usize = message.len();
+
+	error!("{} to {}\n", message, stream.peer_addr()?);
+
+	double_word[0] = (message_length >> 24) as u8;
+	double_word[1] = (message_length >> 16) as u8;
+	double_word[2] = (message_length >> 8) as u8;
+	double_word[3] = message_length as u8;
+
+	stream.write_vectored(&[
+		IoSlice::new(OPERATION_ERROR),
+		IoSlice::new(double_word),
+		IoSlice::new(message.as_bytes())
+	])?;
+
+	Ok(())
 }
 
 pub struct Version {
@@ -75,6 +96,18 @@ impl Version {
 			minor: minor,
 			patch: patch
 		}
+	}
+
+	pub fn major(self: &Self) -> u8 {
+		self.major
+	}
+
+	pub fn minor(self: &Self) -> u8 {
+		self.minor
+	}
+
+	pub fn patch(self: &Self) -> u8 {
+		self.patch
 	}
 }
 
@@ -147,17 +180,4 @@ impl Display for Version {
 	fn fmt(self: &Self, formatter: &mut Formatter<'_>) -> _Result {
 		write!(formatter, "{}.{}.{}", self.major, self.minor, self.patch)
 	}
-}
-
-pub fn send_error(stream: &mut TcpStream, message: String) -> Result<()> {
-	let message_length: usize = message.len();
-
-	if ARGUMENT.is_verbose {
-		eprint!("{} from {}\n", message, stream.peer_addr()?);
-	}
-
-	stream.write(&[OPERATION_ERROR[0], (message_length >> 24) as u8, (message_length >> 16) as u8, (message_length >> 8) as u8, message_length as u8])?;
-	stream.write_all(message.as_bytes())?;
-
-	Ok(())
 }

@@ -6,7 +6,11 @@ use std::{
 	},
 	thread::{spawn, JoinHandle}
 };
-use crate::common::{Job, Result, ARGUMENT};
+use crate::{
+	common::{ARGUMENT, Job, Result},
+	debug,
+	error
+};
 
 pub struct ThreadPool {
 	threads: Vec<JoinHandle<()>>,
@@ -16,7 +20,7 @@ pub struct ThreadPool {
 impl ThreadPool {
 	pub fn new(size: usize) -> Result<ThreadPool> {
 		if size == 0 {
-			return Err(Box::from("size must be greater than zero"));
+			return Err(Box::from("size must be greater than 0"));
 		}
 
 		let (sender, receiver): (Sender<Job>, Receiver<Job>) = channel();
@@ -32,7 +36,7 @@ impl ThreadPool {
 					Ok(guard) => guard,
 					Err(error) => {
 						if ARGUMENT.is_verbose {
-							eprint!("{} from thread {}\n", error, id);
+							error!("{} from thread {}\n", error, id);
 						}
 
 						break; // break if lock is poisoned (extremely rare)
@@ -41,20 +45,20 @@ impl ThreadPool {
 					job
 				} else {
 					if ARGUMENT.is_verbose {
-						print!("thread {} shutdown\n", id);
+						debug!("thread {} shutdown\n", id);
 					}
 
 					break;
 				};
 
 				if ARGUMENT.is_verbose {
-					print!("thread {} got job\n", id);
+					debug!("thread {} got job\n", id);
 				}
 
 				job();
 
 				if ARGUMENT.is_verbose {
-					print!("thread {} finished job\n", id);
+					debug!("thread {} finished job\n", id);
 				}
 			}));
 		}

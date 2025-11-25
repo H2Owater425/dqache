@@ -3,8 +3,10 @@ use std::{
 	fmt::{Debug, Formatter, Result as _Result}
 };
 use crate::{
-	common::{unix_epoch, Result, ARGUMENT},
-	model::{DeepQNetwork, LeastFrequentlyUsed, LeastRecentlyUsed}
+	common::{ARGUMENT, Result, unix_epoch},
+	model::{DeepQNetwork, LeastFrequentlyUsed, LeastRecentlyUsed},
+	debug,
+	info
 };
 
 pub struct Entry {
@@ -52,7 +54,7 @@ pub struct Cache {
 
 impl Cache {
 	pub fn new(model: Model, capacity: usize) -> Result<Cache> {
-		print!("cache using {:?} initialized with capacity of {}\n", model, capacity);
+		info!("cache using {:?} initialized with capacity of {}\n", model, capacity);
 
 		Ok(Cache {
 			entries: HashMap::with_capacity(capacity),
@@ -66,8 +68,8 @@ impl Cache {
 	}
 
 	pub fn set(self: &mut Self, key: &str, entry: Entry) -> Result<()> {
-		let old_entries: String = if ARGUMENT.is_verbose {
-			format!("{:?}", self.entries)
+		let entries: String = if ARGUMENT.is_verbose {
+			format!("{:#?}", self.entries)
 		} else {
 			String::new()
 		};
@@ -78,7 +80,7 @@ impl Cache {
 			old_entry.access_count += entry.access_count;
 
 			if ARGUMENT.is_verbose {
-				print!("set {}{:?}", key, old_entry);
+				debug!("set {:?}:{:#?} to {}\n", key, old_entry, entries);
 			}
 		} else {
 			if self.entries.len() == self.capacity {
@@ -86,18 +88,14 @@ impl Cache {
 
 				if let Some(old_entry) = self.entries.remove(&victim_key) {
 					if ARGUMENT.is_verbose {
-						print!("evicted {}{:?} to set {}{:?} from", victim_key, old_entry, key, entry);
+						debug!("evicted {:?}:{:#?} and set {:?}:{:#?} to {}\n", victim_key, old_entry, key, entry, entries);
 					}
 				}
 			} else if ARGUMENT.is_verbose {
-				print!("set {}{:?} to", key, entry);
+				debug!("set {:?}:{:#?} to {}\n", key, entry, entries);
 			}
 
 			self.entries.insert(key.to_owned(), entry);
-		}
-
-		if ARGUMENT.is_verbose {
-			print!(" {}\n", old_entries);
 		}
 
 		Ok(())
@@ -105,7 +103,7 @@ impl Cache {
 
 	pub fn get(self: &mut Self, key: &str) -> Result<Option<&Entry>> {
 		let entries: String = if ARGUMENT.is_verbose {
-			format!("{:?}", self.entries)
+			format!("{:#?}", self.entries)
 		} else {
 			String::new()
 		};
@@ -115,7 +113,7 @@ impl Cache {
 			entry.accessed_at = unix_epoch()?;
 
 			if ARGUMENT.is_verbose {
-				print!("get {} from {}\n", key, entries);
+				debug!("get {:?} from {}\n", key, entries);
 			}
 
 			Some(entry)
@@ -125,15 +123,9 @@ impl Cache {
 	}
 
 	pub fn remove(self: &mut Self, key: &str) -> bool {
-		let old_entries: String = if ARGUMENT.is_verbose {
-			format!("{:?}", self.entries)
-		} else {
-			String::new()
-		};
-
 		if let Some(entry) = self.entries.remove(key) {
 			if ARGUMENT.is_verbose {
-				print!("removed {}{:?} from {}\n", key, entry, old_entries);
+				debug!("removed {:?}:{:#?} and became {:#?}\n", key, entry, self.entries);
 			}
 
 			true

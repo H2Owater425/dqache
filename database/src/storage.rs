@@ -2,7 +2,10 @@ use std::{
 	fs::{create_dir_all, exists, read, remove_file, write},
 	path::PathBuf
 };
-use crate::common::{Result, ARGUMENT};
+use crate::{
+	common::{ARGUMENT, Result},
+	debug
+};
 
 pub struct Storage {
 	root: PathBuf
@@ -23,7 +26,7 @@ impl Storage {
 		let file: PathBuf = self.root.join(key);
 
 		if ARGUMENT.is_verbose {
-			print!("read {} from {}\n", key, file.display());
+			debug!("read {:?} from {:?}\n", key, file.display());
 		}
 
 		Ok(if exists(&file)? {
@@ -37,7 +40,7 @@ impl Storage {
 		let file: PathBuf = self.root.join(key);
 
 		if ARGUMENT.is_verbose {
-			print!("wrote {} from {}\n", key, file.display());
+			debug!("wrote {:?} to {:?}\n", key, file.display());
 		}
 
 		Ok(write(&file, value)?)
@@ -46,11 +49,11 @@ impl Storage {
 	pub fn delete(self: &Self, key: &str) -> Result<bool> {
 		let file: PathBuf = self.root.join(key);
 
-		if ARGUMENT.is_verbose {
-			print!("deleted {} from {}\n", key, file.display());
-		}
-
 		if exists(&file)? {
+			if ARGUMENT.is_verbose {
+				debug!("deleted {:?} from {:?}\n", key, file.display());
+			}
+
 			remove_file(&file)?;
 
 			Ok(true)

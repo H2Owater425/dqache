@@ -5,10 +5,11 @@ mod model;
 mod protocol;
 mod storage;
 mod thread_pool;
+mod logger;
 
 use std::{
-	io::{Error, ErrorKind, Read, Write},
-	net::{Ipv4Addr, TcpListener, TcpStream},
+	io::{Error, ErrorKind, IoSlice, Read, Write},
+	net::{TcpListener, TcpStream},
 	sync::{
 		Arc,
 		Mutex,
@@ -21,13 +22,11 @@ use std::{
 	thread::available_parallelism,
 	time::Duration
 };
+
 use crate::{
 	cache::{Cache, Entry},
-	common::{Result, ARGUMENT},
+	common::{ARGUMENT, Result, get_address},
 	protocol::{
-		read_string,
-		send_error,
-		Version,
 		OPERATION_DEL,
 		OPERATION_GET,
 		OPERATION_HELLO,
@@ -36,21 +35,24 @@ use crate::{
 		OPERATION_QUIT,
 		OPERATION_READY,
 		OPERATION_SET,
-		OPERATION_VALUE
+		OPERATION_VALUE,
+		Version,
+		read_string,
+		send_error
 	},
 	storage::Storage,
 	thread_pool::ThreadPool
 };
 
 fn main() -> Result<()> {
-	print!("starting qache {} on {}\n", ARGUMENT.version, ARGUMENT.platform);
+	info!("starting qache {} on {}\n", ARGUMENT.version, ARGUMENT.platform);
 
 	let cache: Arc<Mutex<Cache>> = Arc::new(Mutex::new(Cache::new(ARGUMENT.model, ARGUMENT.capacity)?));
 	let storage: Arc<RwLock<Storage>> = Arc::new(RwLock::new(Storage::new(&ARGUMENT.directory)?));
 	let thread_pool: ThreadPool = ThreadPool::new(available_parallelism()?.get())?;
-	let listener: TcpListener = TcpListener::bind((Ipv4Addr::new(0, 0, 0, 0), ARGUMENT.port))?;
+	let listener: TcpListener = TcpListener::bind((ARGUMENT.host, ARGUMENT.port))?;
 
-	print!("lisening on 0.0.0.0:{}\n", ARGUMENT.port);
+	info!("lisening on 0.0.0.0:{}\n", ARGUMENT.port);
 
 	for stream in listener.incoming() {
 		let mut stream: TcpStream = stream?;
@@ -58,25 +60,27 @@ fn main() -> Result<()> {
 		let storage: Arc<RwLock<Storage>> = storage.clone();
 
 		stream.set_read_timeout(Some(Duration::from_mins(1)))?;
+		stream.set_nodelay(true)?;
 
 		thread_pool.execute(move || {
+			let mut double_word: [u8; 4] = [0; 4];
+
 			if let Err(error) = (|| -> Result<()> {
-				stream.write(OPERATION_READY)?;
+				stream.write(&[OPERATION_READY[0], ARGUMENT.version.major(), ARGUMENT.version.minor(),ARGUMENT.version.patch()])?;
 
-				let mut handshake: [u8; 4] = [0, 0, 0, 0];
+				// Use value_length as handshake
+				stream.read_exact(&mut double_word)?;
 
-				stream.read_exact(&mut handshake)?;
-
-				if handshake[0] != OPERATION_HELLO[0] {
+				if double_word[0] != OPERATION_HELLO[0] {
 					return Err(Box::from("handshake must start with HELLO operation"));
 				}
 
-				if let Ok(version) = Version::try_from(&handshake[1..4]) {
+				if let Ok(version) = Version::try_from(&double_word[1..4]) {
 					if version > ARGUMENT.version {
 						return Err(Box::from(format!("client version must be less than or equal to {}", ARGUMENT.version)));
 					}
 
-					print!("client connected with {} from {}\n", version, stream.peer_addr()?);
+					info!("client connected with {} from {}\n", version, stream.peer_addr()?);
 				} else {
 					return Err(Box::from("client version must be invalid\n"));
 				}
@@ -85,23 +89,21 @@ fn main() -> Result<()> {
 
 				Ok(())
 			})() {
-				let _ = send_error(&mut stream, error.to_string());
+				let _ = send_error(&mut stream, &mut double_word, error.to_string());
 
 				return;
 			}
 
-			let mut operation: [u8; 1] = [0];
-			let mut key_length: [u8; 1] = [0];
-			let mut value_length: [u8; 4] = [0, 0, 0, 0];
+			let mut word: [u8; 2] = [0; 2];
 
 			loop {
 				if let Err(error) = (|| -> Result<()> {
-					stream.read_exact(&mut operation)?;
+					stream.read_exact(&mut word)?;
 
-					match &operation {
+					match &word[0..1] {
 						OPERATION_SET => {
-							let key: String = read_string::<1>(&mut stream, &mut key_length)?;
-							let value: String = read_string::<4>(&mut stream, &mut value_length)?;
+							let key: String = read_string::<2>(&mut stream, &mut word)?;
+							let value: String = read_string::<4>(&mut stream, &mut double_word)?;
 
 							cache.lock()
 								.map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?
@@ -113,7 +115,7 @@ fn main() -> Result<()> {
 							stream.write(OPERATION_OK)?;
 						},
 						OPERATION_DEL => {
-							let key: String = read_string::<1>(&mut stream, &mut key_length)?;
+							let key: String = read_string::<2>(&mut stream, &mut word)?;
 
 							cache.lock()
 								.map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?
@@ -128,7 +130,7 @@ fn main() -> Result<()> {
 							stream.write(OPERATION_OK)?;
 						},
 						OPERATION_GET => {
-							let key: String = read_string::<1>(&mut stream, &mut key_length)?;
+							let key: String = read_string::<2>(&mut stream, &mut word)?;
 							let (is_cached, value): (bool, String) = if let Some(entry) = cache.lock()
 								.map_err(|error: PoisonError<MutexGuard<'_, Cache>>| error.to_string())?
 								.get(&key)? {
@@ -151,8 +153,16 @@ fn main() -> Result<()> {
 
 							let value_length: usize = value.len();
 
-							stream.write(&[OPERATION_VALUE[0], (value_length >> 24) as u8, (value_length >> 16) as u8, (value_length >> 8) as u8, value_length as u8])?;
-							stream.write_all(value.as_bytes())?;
+							double_word[0] = (value_length >> 24) as u8;
+							double_word[1] = (value_length >> 16) as u8;
+							double_word[2] = (value_length >> 8) as u8;
+							double_word[3] = value_length as u8;
+
+							stream.write_vectored(&[
+								IoSlice::new(OPERATION_VALUE),
+								IoSlice::new(&double_word),
+								IoSlice::new(value.as_bytes())
+							])?;
 						},
 						OPERATION_NOP => {
 							stream.write(OPERATION_OK)?;
@@ -168,13 +178,9 @@ fn main() -> Result<()> {
 					Ok(())
 				})() {
 					if let Some(error) = error.downcast_ref::<Error>() {
-						let _ = send_error(&mut stream, match error.kind() {
+						let _ = send_error(&mut stream, &mut double_word, match error.kind() {
 							ErrorKind::UnexpectedEof => {
-								print!("client terminated from {}\n", if let Ok(address) = stream.peer_addr() {
-									address.to_string()
-								} else {
-									"unknown".to_owned()
-								});
+								warn!("client terminated from {}\n", get_address(&stream));
 
 								break;
 							},
@@ -191,16 +197,12 @@ fn main() -> Result<()> {
 					let message: String = error.to_string();
 
 					if message.len() == 0 {
-						print!("client disconnected from {}\n", if let Ok(address) = stream.peer_addr() {
-							address.to_string()
-						} else {
-							"unknown".to_owned()
-						});
+						info!("client disconnected from {}\n", get_address(&stream));
 
 						break;
 					}
 
-					if send_error(&mut stream, message).is_err() {
+					if send_error(&mut stream, &mut double_word, message).is_err() {
 						break;
 					}
 				}

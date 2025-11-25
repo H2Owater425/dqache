@@ -13,7 +13,8 @@ use std::{
 };
 use crate::{
 	cache::{Entry, Evictor},
-	common::{log1p, unix_epoch, Result, ARGUMENT}
+	common::{ARGUMENT, Result, log1p, unix_epoch},
+	debug
 };
 
 pub struct DeepQNetwork<'a> {
@@ -35,7 +36,7 @@ impl<'a> Evictor for DeepQNetwork<'a> {
 		let length: usize = entries.len();
 
 		if length == 0 {
-			return Err(Box::from("entries length must be greater than zero"));
+			return Err(Box::from("entries length must be greater than 0"));
 		}
 
 		let mut keys: Vec<&String> = Vec::with_capacity(length);
@@ -57,13 +58,12 @@ impl<'a> Evictor for DeepQNetwork<'a> {
 		let mut minimum_score: f32 = f32::MAX;
 		let mut minimum_index: usize = 0;
 
-
 		if ARGUMENT.is_verbose {
 			let mut key_scores: Vec<(&&String, &f32)> = zip(&keys, output).collect::<Vec<(&&String, &f32)>>();
 
 			key_scores.sort_by(|a: &(&&String, &f32), b: &(&&String, &f32)| a.1.total_cmp(b.1));
 
-			print!("scored with {:?}\n", key_scores);
+			debug!("scored with {:#?}\n", key_scores);
 		}
 
 		for score in output {
@@ -84,7 +84,7 @@ pub struct LeastRecentlyUsed {}
 impl Evictor for LeastRecentlyUsed {
 	fn select_victim(self: &mut Self, entries: &HashMap<String, Entry>) -> Result<String> {
 		if entries.len() == 0 {
-			return Err(Box::from("entries length must be greater than zero"));
+			return Err(Box::from("entries length must be greater than 0"));
 		}
 
 		let mut minimum_accessed_at: u64 = u64::MAX;
@@ -106,7 +106,7 @@ pub struct LeastFrequentlyUsed {}
 impl Evictor for LeastFrequentlyUsed {
 	fn select_victim(self: &mut Self, entries: &HashMap<String, Entry>) -> Result<String> {
 		if entries.len() == 0 {
-			return Err(Box::from("entries length must be greater than zero"));
+			return Err(Box::from("entries length must be greater than 0"));
 		}
 
 		let mut minimum_access_count: u64 = u64::MAX;
