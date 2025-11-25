@@ -45,7 +45,7 @@ use crate::{
 };
 
 fn main() -> Result<()> {
-	info!("starting qache {} on {}\n", ARGUMENT.version, ARGUMENT.platform);
+	info!("starting dQache {} on {}\n", ARGUMENT.version, ARGUMENT.platform);
 
 	let cache: Arc<Mutex<Cache>> = Arc::new(Mutex::new(Cache::new(ARGUMENT.model, ARGUMENT.capacity)?));
 	let storage: Arc<RwLock<Storage>> = Arc::new(RwLock::new(Storage::new(&ARGUMENT.directory)?));

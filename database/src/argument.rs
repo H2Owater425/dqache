@@ -2,7 +2,8 @@ use std::{
 	env::{
 		Args,
 		args,
-		consts::{ARCH, OS}
+		consts::{ARCH, OS},
+		current_exe
 	},
 	fs::metadata,
 	net::Ipv4Addr,
@@ -56,9 +57,14 @@ impl Argument {
 			})
 		};
 
-		let mut arguments: Args = args();
+		let executable: String = if let Some(executable_path) = current_exe()?.file_name() {
+			executable_path.display()
+				.to_string()
+		} else {
+			return Err(Box::from("executable path must be valid"));
+		};
 
-		arguments.next();
+		let mut arguments: Args = args();
 
 		while let Some(value) = arguments.next() {
 			match value.as_str() {
@@ -104,12 +110,12 @@ impl Argument {
 				},
 				"--verbose" | "-v" => argument.is_verbose = true,
 				"--version" | "-V" => {
-					print!("qache {}\n", argument.version);
+					print!("{} {}\n", executable, argument.version);
 
 					exit(0);
 				},
 				"--help" | "-h" => {
-					print!("Usage: qache [OPTIONS]
+					print!("Usage: {} [OPTIONS]
 
 Options:
   -m, --model <MODEL>          Set cache model [DQN, LRU, LFU] (default: DQN)
@@ -120,14 +126,14 @@ Options:
   -v, --verbose                Enable verbose output
   -V, --version                Print version information
   -h, --help                   Print this help message
-");
+", executable);
 
 					exit(0);
 				},
 				"--" => if let Some(_) = arguments.next() {
 					return Err(Box::from("positional arguments must not be provided"));
 				},
-				_ => return Err(Box::from("Usage: qache [-m <MODEL>] [-c <CAPACITY>] [-d <DIRECTORY>] [-H <HOST>] [-p <PORT>] [-v] [-V] [-h]"))
+				_ => return Err(Box::from(format!("Usage: {} [-m <MODEL>] [-c <CAPACITY>] [-d <DIRECTORY>] [-H <HOST>] [-p <PORT>] [-v] [-V] [-h]", executable)))
 			}
 		}
 
