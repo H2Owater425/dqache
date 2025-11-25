@@ -32,7 +32,11 @@ impl Argument {
 		let mut argument: Argument = Argument {
 			model: Model::DeepQNetwork,
 			capacity: 128,
-			directory: "./data".to_string(),
+			directory: (if cfg!(target_os = "windows") {
+				".\\data"
+			} else {
+				"./data"
+			}).to_string(),
 			host: Ipv4Addr::new(127, 0, 0, 1),
 			port: 5190,
 			is_verbose: false,
