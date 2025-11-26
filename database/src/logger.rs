@@ -39,8 +39,43 @@ impl Logger {
 		}
 	}
 
+	#[cfg(target_os = "windows")]
+	fn write_vectored(self: &Self, level: u8, buffers: &[IoSlice<'_>]) {
+		let mut writer: MutexGuard<'_, dyn Write + Send> = if level < 3 {
+			self.error.lock()
+				.unwrap()
+		} else {
+			self.output.lock()
+				.unwrap()
+		};
+
+		for buffer in buffers {
+			writer.write_all(&buffer)
+				.unwrap();
+		}
+
+		writer.flush()
+			.unwrap();
+	}
+
+	#[cfg(not(target_os = "windows"))]
+	fn write_vectored(self: &Self, level: u8, buffers: &[IoSlice<'_>]) {
+		let mut writer: MutexGuard<'_, dyn Write + Send> = if level < 3 {
+			self.error.lock()
+				.unwrap()
+		} else {
+			self.output.lock()
+				.unwrap()
+		};
+
+		writer.write_vectored(buffers)
+			.unwrap();
+		writer.flush()
+			.unwrap();
+	}
+
 	fn log(self: &Self, level: u8, message: &str) {
-		if level < self.level {
+		if level > self.level {
 			return;
 		}
 
@@ -49,25 +84,18 @@ impl Logger {
 			let current_second: u64 = unix_epoch().unwrap();
 
 			if current_second != timestamp.last_second {
-				let mut day_count: u64 = current_second;
-				let remainder: u64 = day_count % 86400;
-
-				day_count = day_count / 86400 + 719468;
-
+				let day_count: u64 = current_second / 86400 + 719468;
+				let remainder: u64 = current_second % 86400;
 				let hour: u64 = remainder / 3600;
-
-				timestamp.buffer[11] = ((hour / 10) as u8) + 48;
-				timestamp.buffer[12] = ((hour % 10) as u8) + 48;
-
 				let minute: u64 = (remainder % 3600) / 60;
-
-				timestamp.buffer[14] = ((minute / 10) as u8) + 48;
-				timestamp.buffer[15] = ((minute % 10) as u8) + 48;
-
 				let second: u64 = remainder % 60;
 
-				timestamp.buffer[17] = ((second / 10) as u8) + 48;
-				timestamp.buffer[18] = ((second % 10) as u8) + 48;
+				timestamp.buffer[11] = (hour / 10) as u8 + 48;
+				timestamp.buffer[12] = (hour % 10) as u8 + 48;
+				timestamp.buffer[14] = (minute / 10) as u8 + 48;
+				timestamp.buffer[15] = (minute % 10) as u8 + 48;
+				timestamp.buffer[17] = (second / 10) as u8 + 48;
+				timestamp.buffer[18] = (second % 10) as u8 + 48;
 
 				// Hinnant's Algorithm
 				let era: u64 = day_count / 146097;
@@ -92,25 +120,25 @@ impl Logger {
 					year += 1;
 				}
 
-				timestamp.buffer[0] = ((year / 1000) as u8) + 48;
-				timestamp.buffer[1] = (((year / 100) % 10) as u8) + 48;
-				timestamp.buffer[2] = (((year / 10) % 10) as u8) + 48;
-				timestamp.buffer[3] = ((year % 10) as u8) + 48;
-				timestamp.buffer[5] = ((month / 10) as u8) + 48;
-				timestamp.buffer[6] = ((month % 10) as u8) + 48;
-				timestamp.buffer[8] = ((day / 10) as u8) + 48;
-				timestamp.buffer[9] = ((day % 10) as u8) + 48;
+				timestamp.buffer[0] = (year / 1000) as u8 + 48;
+
+				year %= 1000;
+				
+				timestamp.buffer[1] = (year / 100) as u8 + 48;
+				
+				year %= 100;
+				
+				timestamp.buffer[2] = (year / 10) as u8 + 48;
+				timestamp.buffer[3] = (year % 10) as u8 + 48;
+				timestamp.buffer[5] = (month / 10) as u8 + 48;
+				timestamp.buffer[6] = (month % 10) as u8 + 48;
+				timestamp.buffer[8] = (day / 10) as u8 + 48;
+				timestamp.buffer[9] = (day % 10) as u8 + 48;
 
 				timestamp.last_second = current_second;
 			}
 
-			let mut writer: MutexGuard<'_, dyn Write + Send>  = if level < 3 {
-				self.error.lock().unwrap()
-			} else {
-				self.output.lock().unwrap()
-			};
-
-			writer.write_vectored(&[
+			self.write_vectored(level, &[
 				IoSlice::new(&timestamp.buffer),
 				match level {
 					1 => *FATAL_SLICE,
@@ -122,10 +150,7 @@ impl Logger {
 					_ => *INFO_SLICE
 				},
 				IoSlice::new(message.as_bytes())
-			])
-				.unwrap();
-			writer.flush()
-				.unwrap();
+			]);
 		});
 	}
 
