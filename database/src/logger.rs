@@ -123,11 +123,11 @@ impl Logger {
 				timestamp.buffer[0] = (year / 1000) as u8 + 48;
 
 				year %= 1000;
-				
+
 				timestamp.buffer[1] = (year / 100) as u8 + 48;
-				
+
 				year %= 100;
-				
+
 				timestamp.buffer[2] = (year / 10) as u8 + 48;
 				timestamp.buffer[3] = (year % 10) as u8 + 48;
 				timestamp.buffer[5] = (month / 10) as u8 + 48;

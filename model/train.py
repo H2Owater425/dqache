@@ -36,7 +36,7 @@ class DeepQNetworkAgent:
 			Dense(32, leaky_relu),
 			Dense(1, linear),
 		])
-		
+
 		model.compile(Adam(learning_rate), mean_squared_error)
 
 		return model
@@ -65,14 +65,14 @@ class DeepQNetworkAgent:
 	def train_from_replay(self):
 		if self.replay_buffer.size < self.batch_size:
 			return
-		
+
 		states, rewards, next_states = zip(*self.replay_buffer.sample(self.batch_size))
 
 		non_terminal_mask = array([s is not None for s in next_states])
 		non_terminal_next_states = vstack([s for s in next_states if s is not None])
 
 		target_q_values = zeros(self.batch_size)
-		
+
 		if non_terminal_next_states.shape[0] > 0:
 			target_q_values[non_terminal_mask] = self.target_model(non_terminal_next_states, training=False).numpy().flatten()
 
@@ -86,11 +86,11 @@ class Environment:
 		self.capacity = capacity
 		self.agent = agent
 		self.data = data.to_dict('records')
-		
+
 		# {id: [size, last_access_time, frequency]}
 		self.caches = {}
 		self.current_time = 0
-		
+
 		self.hit_count = 0
 		self.miss_count = 0
 
@@ -107,7 +107,7 @@ class Environment:
 
 				self.caches[row['filename']][1] = self.current_time
 				self.caches[row['filename']][2] += 1
-				
+
 				if row['op_type'] == 'WRITE':
 					self.caches[row['filename']][0] = row['request_io_size_bytes']
 
@@ -124,7 +124,7 @@ class Environment:
 				deleted_index = argmin(self.agent.get_scores(features))
 
 				del self.caches[ids[deleted_index]]
-				
+
 				self.agent.store_experience(features[deleted_index], 0, None)
 
 			self.caches[row['filename']] = [row['request_io_size_bytes'], self.current_time, 1]
@@ -227,7 +227,7 @@ with open(f'logs/{unix_epoch()}.log', 'w') as output:
 					if hit_score > best_hit_score:
 						best_hit_score = hit_score
 						agent.policy_model.save(f'saves/{now}.keras')
-						
+
 						output.write("saved (best)\n")
 
 				output.write(f"best hit score: {best_hit_score:.4f}\n")
@@ -245,7 +245,7 @@ with open(f'logs/{unix_epoch()}.log', 'w') as output:
 					ax1.tick_params(axis='y', labelcolor=color)
 					ax1.set_title('hit score, capacity')
 					ax1.grid(True)
-					
+
 					ax1b = ax1.twinx()
 					color = 'tab:green'
 					ax1b.set_ylabel('capacity', color=color)
