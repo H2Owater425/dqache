@@ -53,7 +53,7 @@ fn main() {
 		let thread_pool: ThreadPool = ThreadPool::new(available_parallelism()?.get() * 2)?;
 		let listener: TcpListener = TcpListener::bind((ARGUMENT.host, ARGUMENT.port))?;
 
-		info!("lisening on 0.0.0.0:{} with {} threads\n", ARGUMENT.port, thread_pool.size());
+		info!("lisening on {}:{} with {} threads\n", ARGUMENT.host, ARGUMENT.port, thread_pool.size());
 
 		for stream in listener.incoming() {
 			let mut stream: TcpStream = stream?;
