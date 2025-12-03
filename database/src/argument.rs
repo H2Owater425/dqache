@@ -8,7 +8,8 @@ use std::{
 	fs::metadata,
 	iter::Skip,
 	net::Ipv4Addr,
-	process::exit
+	process::exit,
+	thread::available_parallelism
 };
 use crate::{
 	cache::Model,
@@ -22,23 +23,27 @@ pub struct Argument {
 	pub directory: String,
 	pub host: Ipv4Addr,
 	pub port: u16,
+	pub thread_count: usize,
 	pub is_verbose: bool,
 	pub version: Version,
 	pub platform: String
 }
+
+const DEFAULT_DIRECTORY: &str = if cfg!(target_os = "windows") {
+	".\\data"
+} else {
+	"./data"
+};
 
 impl Argument {
 	pub fn new() -> Result<Self> {
 		let mut argument: Argument = Argument {
 			model: Model::DeepQNetwork,
 			capacity: 128,
-			directory: (if cfg!(target_os = "windows") {
-				".\\data"
-			} else {
-				"./data"
-			}).to_string(),
+			directory: DEFAULT_DIRECTORY.to_string(),
 			host: Ipv4Addr::new(127, 0, 0, 1),
 			port: 5190,
+			thread_count: available_parallelism()?.get() * 2,
 			is_verbose: false,
 			version: Version::try_from(env!("CARGO_PKG_VERSION"))?,
 			platform: format!("{}-{}-{}{}", ARCH, OS, if cfg!(target_vendor = "apple") {
@@ -62,8 +67,8 @@ impl Argument {
 			})
 		};
 
-		let executable: String = if let Some(executable_path) = current_exe()?.file_name() {
-			executable_path.display()
+		let file_name: String = if let Some(raw_file_name) = current_exe()?.file_name() {
+			raw_file_name.display()
 				.to_string()
 		} else {
 			return Err(Box::from("executable path must be valid"));
@@ -74,7 +79,8 @@ impl Argument {
 		while let Some(value) = arguments.next() {
 			match value.as_str() {
 				"--model" | "-m" => if let Some(raw_model) = arguments.next() {
-					match raw_model.to_ascii_lowercase().as_str() {
+					match raw_model.to_ascii_lowercase()
+						.as_str() {
 						"dqn" | "deepqnetwork" => argument.model = Model::DeepQNetwork,
 						"lru" | "leastrecentlyused" => argument.model = Model::LeastRecentlyUsed,
 						"lfu" | "leastfrequentlyused" => argument.model = Model::LeastFrequentlyUsed,
@@ -113,32 +119,40 @@ impl Argument {
 						return Err(Box::from("port must be greater than 0"));
 					}
 				},
+				"--threadcount" | "-t" => if let Some(raw_thread_count) = arguments.next() {
+					argument.thread_count = raw_thread_count.parse::<usize>()?;
+
+					if argument.thread_count == 0 {
+						return Err(Box::from("thread count must be greater than 0"));
+					}
+				},
 				"--verbose" | "-v" => argument.is_verbose = true,
 				"--version" | "-V" => {
-					print!("{} {}\n", executable, argument.version);
+					print!("{} {}\n", file_name, argument.version);
 
 					exit(0);
 				},
 				"--help" | "-h" => {
 					print!("Usage: {} [OPTIONS]
 
-Options:
-  -m, --model <MODEL>          Set cache model [DQN, LRU, LFU] (default: DQN)
-  -c, --capacity <CAPACITY>    Set cache capacity (default: 128)
-  -d, --directory <DIRECTORY>  Set data directory (default: ./data)
-  -H, --host <HOST>            Set server host (default: 127.0.0.1)
-  -p, --port <PORT>            Set server port (default: 5190)
-  -v, --verbose                Enable verbose output
-  -V, --version                Print version information
-  -h, --help                   Print this help message
-", executable);
+	Options:
+		-m, --model <MODEL>          Set cache model [dqn, lru, lfu] (default: dqn)
+		-c, --capacity <CAPACITY>    Set cache capacity (default: 128)
+		-d, --directory <DIRECTORY>  Set data directory (default: {})
+		-H, --host <HOST>            Set server host (default: 127.0.0.1)
+		-p, --port <PORT>            Set server port (default: 5190)
+		-t, --threadcount <COUNT>    Set thread count (default: number of logical cores * 2)
+		-v, --verbose                Enable verbose output
+		-V, --version                Print version information
+		-h, --help                   Print this help message
+", file_name, DEFAULT_DIRECTORY);
 
 					exit(0);
 				},
 				"--" => if let Some(_) = arguments.next() {
 					return Err(Box::from("positional arguments must not be provided"));
 				},
-				_ => return Err(Box::from(format!("Usage: {} [-m <MODEL>] [-c <CAPACITY>] [-d <DIRECTORY>] [-H <HOST>] [-p <PORT>] [-v] [-V] [-h]", executable)))
+				_ => return Err(Box::from(format!("Usage: {} [-m <MODEL>] [-c <CAPACITY>] [-d <DIRECTORY>] [-H <HOST>] [-p <PORT>] [-t <COUNT>] [-v] [-V] [-h]", file_name)))
 			}
 		}
 

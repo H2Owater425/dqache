@@ -13,7 +13,6 @@ use std::{
 		RwLockReadGuard,
 		RwLockWriteGuard
 	},
-	thread::available_parallelism,
 	time::Duration
 };
 use crate::{
@@ -195,10 +194,10 @@ pub fn serve() -> Result<()> {
 
 	let cache: Arc<Mutex<Cache>> = Arc::new(Mutex::new(Cache::new(ARGUMENT.model, ARGUMENT.capacity)?));
 	let storage: Arc<RwLock<Storage>> = Arc::new(RwLock::new(Storage::new(&ARGUMENT.directory)?));
-	let thread_pool: ThreadPool = ThreadPool::new(available_parallelism()?.get() * 2)?;
+	let thread_pool: ThreadPool = ThreadPool::new(ARGUMENT.thread_count)?;
 	let listener: TcpListener = TcpListener::bind((ARGUMENT.host, ARGUMENT.port))?;
 
-	info!("lisening on {}:{} with {} threads\n", ARGUMENT.host, ARGUMENT.port, thread_pool.size());
+	info!("lisening on {}:{} with {} threads\n", ARGUMENT.host, ARGUMENT.port, ARGUMENT.thread_count);
 
 	for stream in listener.incoming() {
 		let mut stream: TcpStream = stream?;
