@@ -5,7 +5,6 @@ use ort::{
 		CoreMLExecutionProvider,
 		DirectMLExecutionProvider,
 		ExecutionProvider,
-		ExecutionProviderDispatch,
 		TensorRTExecutionProvider,
 		XNNPACKExecutionProvider
 	},
@@ -13,7 +12,7 @@ use ort::{
 		InMemorySession,
 		Session,
 		SessionOutputs,
-		builder::GraphOptimizationLevel
+		builder::{GraphOptimizationLevel, SessionBuilder}
 	},
 	value::Value
 };
@@ -38,37 +37,26 @@ pub struct DeepQNetwork<'a> {
 
 impl<'a> DeepQNetwork<'a> {
 	pub fn new() -> Result<Self>  {
-		let mut execution_provider: [ExecutionProviderDispatch; 1] = [CPUExecutionProvider::default().build(); 1];
+		let mut session: SessionBuilder = Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
 
-		info!("initializing model using DeepQNetwork on {}\n", if TensorRTExecutionProvider::default().is_available()? {
-			execution_provider[0] = TensorRTExecutionProvider::default().build();
-
+		info!("initializing model using DeepQNetwork on {}\n", if let Ok(_) = TensorRTExecutionProvider::default().register(&mut session) {
 			"TensorRT"
-		} else if CUDAExecutionProvider::default().is_available()? {
-			execution_provider[0] = CUDAExecutionProvider::default().build();
-
+		} else if let Ok(_) = CUDAExecutionProvider::default().register(&mut session) {
 			"CUDA"
-		} else if DirectMLExecutionProvider::default().is_available()? {
-			execution_provider[0] = DirectMLExecutionProvider::default().build();
-
+		} else if let Ok(_) = DirectMLExecutionProvider::default().register(&mut session) {
 			"DirectML"
-		} else if CoreMLExecutionProvider::default().is_available()? {
-			execution_provider[0] = CoreMLExecutionProvider::default().build();
-
+		} else if let Ok(_) = CoreMLExecutionProvider::default().register(&mut session) {
 			"CoreML"
-		} else if XNNPACKExecutionProvider::default().is_available()? {
-			execution_provider[0] = XNNPACKExecutionProvider::default().build();
-
+		} else if let Ok(_) = XNNPACKExecutionProvider::default().register(&mut session) {
 			"XNNPACK"
 		} else {
+			CPUExecutionProvider::default().register(&mut session)?;
+
 			"CPU"
 		});
 
 		Ok(DeepQNetwork {
-			model: Session::builder()?
-				.with_execution_providers(execution_provider)?
-				.with_optimization_level(GraphOptimizationLevel::Level3)?
-				.commit_from_memory_directly(include_bytes!("../model.onnx"))?
+			model: session.commit_from_memory_directly(include_bytes!("../model.onnx"))?
 		})
 	}
 }
