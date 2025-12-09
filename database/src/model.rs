@@ -39,15 +39,15 @@ impl<'a> DeepQNetwork<'a> {
 	pub fn new() -> Result<Self>  {
 		let mut session: SessionBuilder = Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
 
-		info!("initializing model using DeepQNetwork on {}\n", if let Ok(_) = TensorRTExecutionProvider::default().register(&mut session) {
+		info!("initializing model using DeepQNetwork on {}\n", if TensorRTExecutionProvider::default().register(&mut session).is_ok() {
 			"TensorRT"
-		} else if let Ok(_) = CUDAExecutionProvider::default().register(&mut session) {
+		} else if CUDAExecutionProvider::default().register(&mut session).is_ok() {
 			"CUDA"
-		} else if let Ok(_) = DirectMLExecutionProvider::default().register(&mut session) {
+		} else if DirectMLExecutionProvider::default().register(&mut session).is_ok() {
 			"DirectML"
-		} else if let Ok(_) = CoreMLExecutionProvider::default().register(&mut session) {
+		} else if CoreMLExecutionProvider::default().register(&mut session).is_ok() {
 			"CoreML"
-		} else if let Ok(_) = XNNPACKExecutionProvider::default().register(&mut session) {
+		} else if XNNPACKExecutionProvider::default().register(&mut session).is_ok() {
 			"XNNPACK"
 		} else {
 			CPUExecutionProvider::default().register(&mut session)?;
