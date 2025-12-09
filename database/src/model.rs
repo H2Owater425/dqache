@@ -1,13 +1,5 @@
 use ort::{
-	execution_providers::{
-		CPUExecutionProvider,
-		CUDAExecutionProvider,
-		CoreMLExecutionProvider,
-		DirectMLExecutionProvider,
-		ExecutionProvider,
-		TensorRTExecutionProvider,
-		XNNPACKExecutionProvider
-	},
+	execution_providers::{ExecutionProvider, XNNPACKExecutionProvider},
 	session::{
 		InMemorySession,
 		Session,
@@ -39,20 +31,46 @@ impl<'a> DeepQNetwork<'a> {
 	pub fn new() -> Result<Self>  {
 		let mut session: SessionBuilder = Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
 
-		info!("initializing model using DeepQNetwork on {}\n", if TensorRTExecutionProvider::default().register(&mut session).is_ok() {
-			"TensorRT"
-		} else if CUDAExecutionProvider::default().register(&mut session).is_ok() {
-			"CUDA"
-		} else if DirectMLExecutionProvider::default().register(&mut session).is_ok() {
-			"DirectML"
-		} else if CoreMLExecutionProvider::default().register(&mut session).is_ok() {
-			"CoreML"
-		} else if XNNPACKExecutionProvider::default().register(&mut session).is_ok() {
-			"XNNPACK"
-		} else {
-			CPUExecutionProvider::default().register(&mut session)?;
+		info!("initializing model using DeepQNetwork on {}\n", {
+			#[cfg(target_os = "macos")] {
+				use ort::execution_providers::CoreMLExecutionProvider;
 
-			"CPU"
+				if CoreMLExecutionProvider::default().register(&mut session).is_ok() {
+					"CoreML"
+				} else {
+					XNNPACKExecutionProvider::default().register(&mut session)?;
+	
+					"CPU"
+				}
+			}
+			#[cfg(target_os = "windows")] {
+				use ort::execution_providers::{TensorRTExecutionProvider, CUDAExecutionProvider, DirectMLExecutionProvider};
+
+				if TensorRTExecutionProvider::default().register(&mut session).is_ok() {
+					"TensorRT"
+				} else if CUDAExecutionProvider::default().register(&mut session).is_ok() {
+					"CUDA"
+				} else if DirectMLExecutionProvider::default().register(&mut session).is_ok() {
+					"DirectML"
+				} else {
+					XNNPACKExecutionProvider::default().register(&mut session)?;
+	
+					"CPU"
+				}
+			}
+			#[cfg(target_os = "linux")] {
+				use ort::execution_providers::{TensorRTExecutionProvider, CUDAExecutionProvider};
+
+				if TensorRTExecutionProvider::default().register(&mut session).is_ok() {
+					"TensorRT"
+				} else if CUDAExecutionProvider::default().register(&mut session).is_ok() {
+					"CUDA"
+				} else {
+					XNNPACKExecutionProvider::default().register(&mut session)?;
+	
+					"CPU"
+				}
+			}
 		});
 
 		Ok(DeepQNetwork {
