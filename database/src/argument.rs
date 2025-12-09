@@ -12,8 +12,8 @@ use std::{
 	thread::available_parallelism
 };
 use crate::{
-	cache::Model,
 	common::Result,
+	model::Model,
 	protocol::Version
 };
 

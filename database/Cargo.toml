@@ -4,4 +4,4 @@ version = "0.0.1"
 edition = "2021"
 
 [dependencies]
-ort = "2.0.0-rc.10"
+ort = { version = "2.0.0-rc.10", features = ["download-binaries", "copy-dylibs", "tensorrt", "cuda", "directml", "coreml", "xnnpack"] }

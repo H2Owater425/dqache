@@ -4,15 +4,19 @@ use std::{
 };
 use crate::{
 	common::{ARGUMENT, Result, unix_epoch},
-	model::{DeepQNetwork, LeastFrequentlyUsed, LeastRecentlyUsed},
 	debug,
-	info
+	info,
+	model::{DeepQNetwork, LeastFrequentlyUsed, LeastRecentlyUsed, Model}
 };
 
 pub struct Entry {
 	pub value: String,
 	pub accessed_at: u64,
 	pub access_count: u64
+}
+
+pub trait Evictor {
+	fn select_victim(self: &mut Self, entries: &HashMap<String, Entry>) -> Result<String>;
 }
 
 impl Debug for Entry {
@@ -35,17 +39,6 @@ impl Entry {
 	}
 }
 
-pub trait Evictor {
-	fn select_victim(self: &mut Self, entries: &HashMap<String, Entry>) -> Result<String>;
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Model {
-	DeepQNetwork,
-	LeastRecentlyUsed,
-	LeastFrequentlyUsed
-}
-
 pub struct Cache {
 	entries: HashMap<String, Entry>,
 	model: Box<dyn Evictor + Send>,
@@ -54,14 +47,14 @@ pub struct Cache {
 
 impl Cache {
 	pub fn new(model: Model, capacity: usize) -> Result<Cache> {
-		info!("cache using {:?} initialized with capacity of {}\n", model, capacity);
+		info!("initializing cache with capacity of {}\n", capacity);
 
 		Ok(Cache {
 			entries: HashMap::with_capacity(capacity),
 			model: match model {
 				Model::DeepQNetwork => Box::new(DeepQNetwork::new()?),
-				Model::LeastFrequentlyUsed => Box::new(LeastFrequentlyUsed {}),
-				Model::LeastRecentlyUsed => Box::new(LeastRecentlyUsed {})
+				Model::LeastFrequentlyUsed => Box::new(LeastFrequentlyUsed::new()),
+				Model::LeastRecentlyUsed => Box::new(LeastRecentlyUsed::new())
 			},
 			capacity: capacity
 		})

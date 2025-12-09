@@ -1,30 +1,72 @@
 use ort::{
+	execution_providers::{
+		CPUExecutionProvider,
+		CUDAExecutionProvider,
+		CoreMLExecutionProvider,
+		DirectMLExecutionProvider,
+		ExecutionProvider,
+		ExecutionProviderDispatch,
+		TensorRTExecutionProvider,
+		XNNPACKExecutionProvider
+	},
 	session::{
-		builder::GraphOptimizationLevel,
 		InMemorySession,
 		Session,
-		SessionOutputs
+		SessionOutputs,
+		builder::GraphOptimizationLevel
 	},
 	value::Value
 };
-use std::{
-	collections::HashMap,
-	iter::zip
-};
+use std::{collections::HashMap, iter::zip};
 use crate::{
 	cache::{Entry, Evictor},
 	common::{ARGUMENT, Result, log1p, unix_epoch},
-	debug
+	debug,
+	info
 };
+
+#[derive(Debug, Clone, Copy)]
+pub enum Model {
+	DeepQNetwork,
+	LeastRecentlyUsed,
+	LeastFrequentlyUsed
+}
 
 pub struct DeepQNetwork<'a> {
 	model: InMemorySession<'a>
 }
 
 impl<'a> DeepQNetwork<'a> {
-	pub fn new() -> Result<Self> {
+	pub fn new() -> Result<Self>  {
+		let mut execution_provider: [ExecutionProviderDispatch; 1] = [CPUExecutionProvider::default().build(); 1];
+
+		info!("initializing model using DeepQNetwork on {}\n", if TensorRTExecutionProvider::default().is_available()? {
+			execution_provider[0] = TensorRTExecutionProvider::default().build();
+
+			"TensorRT"
+		} else if CUDAExecutionProvider::default().is_available()? {
+			execution_provider[0] = CUDAExecutionProvider::default().build();
+
+			"CUDA"
+		} else if DirectMLExecutionProvider::default().is_available()? {
+			execution_provider[0] = DirectMLExecutionProvider::default().build();
+
+			"DirectML"
+		} else if CoreMLExecutionProvider::default().is_available()? {
+			execution_provider[0] = CoreMLExecutionProvider::default().build();
+
+			"CoreML"
+		} else if XNNPACKExecutionProvider::default().is_available()? {
+			execution_provider[0] = XNNPACKExecutionProvider::default().build();
+
+			"XNNPACK"
+		} else {
+			"CPU"
+		});
+
 		Ok(DeepQNetwork {
 			model: Session::builder()?
+				.with_execution_providers(execution_provider)?
 				.with_optimization_level(GraphOptimizationLevel::Level3)?
 				.commit_from_memory_directly(include_bytes!("../model.onnx"))?
 		})
@@ -81,6 +123,14 @@ impl<'a> Evictor for DeepQNetwork<'a> {
 
 pub struct LeastRecentlyUsed {}
 
+impl LeastRecentlyUsed {
+	pub fn new() -> Self {
+		info!("initializing model using LeastRecentlyUsed\n");
+
+		LeastRecentlyUsed {}
+	}
+}
+
 impl Evictor for LeastRecentlyUsed {
 	fn select_victim(self: &mut Self, entries: &HashMap<String, Entry>) -> Result<String> {
 		if entries.len() == 0 {
@@ -102,6 +152,14 @@ impl Evictor for LeastRecentlyUsed {
 }
 
 pub struct LeastFrequentlyUsed {}
+
+impl LeastFrequentlyUsed {
+	pub fn new() -> Self {
+		info!("initializing model using LeastFrequentlyUsed\n");
+
+		LeastFrequentlyUsed {}
+	}
+}
 
 impl Evictor for LeastFrequentlyUsed {
 	fn select_victim(self: &mut Self, entries: &HashMap<String, Entry>) -> Result<String> {
