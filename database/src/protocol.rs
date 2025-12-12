@@ -34,9 +34,9 @@ use crate::{
 	HELLO <major:u8> <minor:u8> <patch:u8>
 
 	-- request --
-	NOP
+	NOOP
 	SET   <length:u8> <key:String> <length:u32> <value:String>
-	DEL   <length:u8> <key:String>
+	DELETE   <length:u8> <key:String>
 	GET   <length:u8> <key:String>
 
 	-- responses --
@@ -50,9 +50,9 @@ use crate::{
 
 pub const OPERATION_READY: &[u8; 1] = &[0b10000000];
 pub const OPERATION_HELLO: &[u8; 1] = &[0b00000000];
-pub const OPERATION_NOP: &[u8; 1] = &[0b00000010];
+pub const OPERATION_NOOP: &[u8; 1] = &[0b00000010];
 pub const OPERATION_SET: &[u8; 1] = &[0b00000011];
-pub const OPERATION_DEL: &[u8; 1] = &[0b00000100];
+pub const OPERATION_DELETE: &[u8; 1] = &[0b00000100];
 pub const OPERATION_GET: &[u8; 1] = &[0b00000101];
 pub const OPERATION_OK: &[u8; 1] = &[0b10000010];
 pub const OPERATION_VALUE: &[u8; 1] = &[0b10000011];
@@ -216,7 +216,7 @@ pub fn serve() -> Result<()> {
 					IoSlice::new(&ARGUMENT.version.as_bytes())
 				])?;
 
-				// Use value_length as handshake
+				// 중략
 				stream.read_exact(&mut double_word)?;
 
 				if double_word[0] != OPERATION_HELLO[0] {
@@ -262,7 +262,7 @@ pub fn serve() -> Result<()> {
 
 							stream.write(OPERATION_OK)?;
 						},
-						OPERATION_DEL => {
+						OPERATION_DELETE => {
 							let key: String = read_string::<1>(&mut stream, &mut byte)?;
 
 							cache.lock()
@@ -312,7 +312,7 @@ pub fn serve() -> Result<()> {
 								IoSlice::new(value.as_bytes())
 							])?;
 						},
-						OPERATION_NOP => {
+						OPERATION_NOOP => {
 							stream.write(OPERATION_OK)?;
 						},
 						OPERATION_QUIT => {

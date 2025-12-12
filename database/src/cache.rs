@@ -15,6 +15,16 @@ pub struct Entry {
 	pub access_count: u64
 }
 
+impl Entry {
+	pub fn new(value: &str) -> Result<Entry> {
+		Ok(Entry {
+			value: value.to_owned(),
+			accessed_at: unix_epoch()?,
+			access_count: 1
+		})
+	}
+}
+
 pub trait Evictor {
 	fn select_victim(self: &mut Self, entries: &HashMap<String, Entry>) -> Result<String>;
 }
@@ -26,16 +36,6 @@ impl Debug for Entry {
 			.field("accessed_at", &self.accessed_at)
 			.field("access_count", &self.access_count)
 			.finish()
-	}
-}
-
-impl Entry {
-	pub fn new(value: &str) -> Result<Entry> {
-		Ok(Entry {
-			value: value.to_owned(),
-			accessed_at: unix_epoch()?,
-			access_count: 1
-		})
 	}
 }
 
