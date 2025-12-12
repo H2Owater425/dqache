@@ -30,19 +30,19 @@ use crate::{
 	big endian
 
 	-- handshake --
-	READY <major:u8> <minor:u8> <patch:u8>
-	HELLO <major:u8> <minor:u8> <patch:u8>
+	READY  <major:u8> <minor:u8> <patch:u8>
+	HELLO  <major:u8> <minor:u8> <patch:u8>
 
 	-- request --
 	NOOP
-	SET   <length:u8> <key:String> <length:u32> <value:String>
-	DELETE   <length:u8> <key:String>
-	GET   <length:u8> <key:String>
+	SET    <length:u8> <key:String> <length:u32> <value:String>
+	DELETE <length:u8> <key:String>
+	GET    <length:u8> <key:String>
 
 	-- responses --
 	OKAY
-	VALUE <length:u32> <value:String>
-	ERROR <length:u32> <message:String>
+	VALUE  <length:u32> <value:String>
+	ERROR  <length:u32> <message:String>
 
 	-- termination --
 	QUIT
