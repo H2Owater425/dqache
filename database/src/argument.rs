@@ -135,16 +135,16 @@ impl Argument {
 				"--help" | "-h" => {
 					print!("Usage: {} [OPTIONS]
 
-	Options:
-		-m, --model <MODEL>          Set cache model [dqn, lru, lfu] (default: dqn)
-		-c, --capacity <CAPACITY>    Set cache capacity (default: 128)
-		-d, --directory <DIRECTORY>  Set data directory (default: {})
-		-H, --host <HOST>            Set server host (default: 127.0.0.1)
-		-p, --port <PORT>            Set server port (default: 5190)
-		-t, --threadcount <COUNT>    Set thread count (default: number of logical cores * 2)
-		-v, --verbose                Enable verbose output
-		-V, --version                Print version information
-		-h, --help                   Print this help message
+Options:
+	-m, --model <MODEL>          Set cache model [dqn, lru, lfu] (default: dqn)
+	-c, --capacity <CAPACITY>    Set cache capacity (default: 128)
+	-d, --directory <DIRECTORY>  Set data directory (default: {})
+	-H, --host <HOST>            Set server host (default: 127.0.0.1)
+	-p, --port <PORT>            Set server port (default: 5190)
+	-t, --threadcount <COUNT>    Set thread count (default: number of logical cores * 2)
+	-v, --verbose                Enable verbose output
+	-V, --version                Print version information
+	-h, --help                   Print this help message
 ", file_name, DEFAULT_DIRECTORY);
 
 					exit(0);
